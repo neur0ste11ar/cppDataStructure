@@ -3,36 +3,34 @@
 #include <queue>
 #include <vector>
 #include <math.h>
+#include <functional>
 
 template <typename T>
 class BinaryTree;
 
 template <typename T>
+class BinarySearchTree;
+
+template <typename T>
 class Node
 {
 	friend class BinaryTree<T>;
+	friend class BinarySearchTree<T>;
 
 private:
 	T data;
 	Node<T>* left;
 	Node<T>* right;
-	Node<T>* next;
-	int leftFlag;
-	int rightFlag;
 
 public:
-	Node(T data = 0, Node<T>* left = nullptr, Node<T>* right = nullptr, Node<T>* next = nullptr, int leftFlag = 0, int rightFlag = 0)
-		: data(data), left(left), right(right), next(next), leftFlag(leftFlag), rightFlag(rightFlag) {}
-	void setNext(Node<T>* next)
-	{
-		this->next = next;
-	}
+	Node(T data = T(), Node<T>* left = nullptr, Node<T>* right = nullptr)
+		: data(data), left(left), right(right) {}
 };
 
 template <typename T>
 class BinaryTree
 {
-private:
+protected:
 	Node<T>* root;
 
 	int Size(Node<T>* node)
@@ -52,7 +50,10 @@ private:
 	void PreOrder(Node<T>* node)
 	{
 		if (node == nullptr)
+		{
+			std::cout << -1 << " ";
 			return;
+		}
 		std::cout << node->data << " ";
 		PreOrder(node->left);
 		PreOrder(node->right);
@@ -118,6 +119,45 @@ private:
 			i++;
 		node->left = PostInOrderHelper(post, in, pl, pl + i - il - 1, il, i - 1);
 		node->right = PostInOrderHelper(post, in, pl + i - il, pr - 1, i + 1, ir);
+		return node;
+	}
+
+	Node<T>* extendedPreOrderHelper(const T& stopFlag, const T& endFlag, bool& isEnd)
+	{
+		if (isEnd)
+		{
+			return nullptr;
+		}
+		T data;
+		std::cin >> data;
+		if (data == endFlag)
+		{
+			isEnd = true;
+			return nullptr;
+		}
+		if (data == stopFlag)
+		{
+			return nullptr;
+		}
+		Node<T>* node = new Node<T>(data);
+		node->left = extendedPreOrderHelper(stopFlag, endFlag, isEnd);
+		node->right = extendedPreOrderHelper(stopFlag, endFlag, isEnd);
+		return node;
+	}
+
+	Node<T>* pruneHelper(Node<T>* node, std::function<bool(const T&)> condition)
+	{
+		if (node == nullptr)
+			return nullptr;
+
+		node->left = pruneHelper(node->left, condition);
+		node->right = pruneHelper(node->right, condition);
+
+		if (node->left == nullptr && node->right == nullptr && condition(node->data)) {
+			delete node;
+			return nullptr;
+		}
+
 		return node;
 	}
 
@@ -191,6 +231,11 @@ public:
 		root = PostInOrderHelper(post, in, pl, pr, il, ir);
 	}
 
+	void extendedPreOrderCreate(const T& stopFlag, const T& endFlag, bool& isEnd)
+	{
+		root = extendedPreOrderHelper(stopFlag, endFlag, isEnd);
+	}
+
 	bool isEmpty()
 	{
 		return root == nullptr;
@@ -235,18 +280,18 @@ public:
 		return root;
 	}
 
-	Node<T>* find(const T& data, Node<T>* node)
+	bool find(const T& data)
 	{
-		if (node == nullptr)
-			return nullptr;
-		Node<T>* temp = node;
+		if (root == nullptr)
+			return false;
+		Node<T>* temp = root;
 		std::stack<Node<T>*> s;
 		while (temp != nullptr || !s.empty())
 		{
 			while (temp != nullptr)
 			{
 				if (temp->data == data)
-					return temp;
+					return true;
 				s.push(temp);
 				temp = temp->left;
 			}
@@ -254,45 +299,12 @@ public:
 			s.pop();
 			temp = temp->right;
 		}
-		return nullptr;
+		return false;
 	}
 
-	Node<T>* findInForest(const T& data, Node<T>* node, std::vector<Node<T>*>& v)
+	void prune(std::function<bool(const T&)> shouldPrune)
 	{
-		if (node == nullptr)
-			return nullptr;
-		Node<T>* temp = node;
-		std::stack<Node<T>*> s;
-		while (temp != nullptr || !s.empty())
-		{
-			while (temp != nullptr)
-			{
-				bool flag = true;
-				for (int i = 0; i < v.size(); i++)
-				{
-					if (v[i] == temp)
-					{
-						flag = false;
-						break;
-					}
-				}
-				if (flag)
-				{
-					v.push_back(temp);
-					Node<T>* tempNext = findInForest(data, temp->next, v);
-					if (tempNext != nullptr)
-						return tempNext;
-				}
-				if (temp->data == data)
-					return temp;
-				s.push(temp);
-				temp = temp->left;
-			}
-			temp = s.top();
-			s.pop();
-			temp = temp->right;
-		}
-		return nullptr;
+		root = pruneHelper(root, shouldPrune);
 	}
 
 	~BinaryTree()
@@ -301,7 +313,149 @@ public:
 	}
 };
 
-int main()
+
+
+template <typename T>
+class BinarySearchTree : public BinaryTree<T>
+{
+private:
+	bool findHelper(Node<T>* node, const T& data)
+	{
+		if (node == nullptr)
+			return false;
+		if (node->data == data)
+			return true;
+		if (data < node->data)
+			return findHelper(node->left, data);
+		return findHelper(node->right, data);
+	}
+
+	Node<T>* removeHelper(Node<T>* node, const T& data)
+	{
+		if (node == nullptr)
+			return nullptr;
+
+		if (data < node->data)
+		{
+			node->left = removeHelper(node->left, data);
+		}
+		else if (data > node->data)
+		{
+			node->right = removeHelper(node->right, data);
+		}
+		else
+		{
+			if (node->left == nullptr)
+			{
+				Node<T>* temp = node->right;
+				delete node;
+				return temp;
+			}
+			else if (node->right == nullptr)
+			{
+				Node<T>* temp = node->left;
+				delete node;
+				return temp;
+			}
+
+			Node<T>* temp = findMax(node->left);
+			node->data = temp->data;
+			node->left = removeHelper(node->left, temp->data);
+		}
+		return node;
+	}
+
+	Node<T>* findMax(Node<T>* node)
+	{
+		while (node->right != nullptr)
+			node = node->right;
+		return node;
+	}
+
+	void inOrder(Node<T>* node, int& n, T& result)
+	{
+		if (node == nullptr || n <= 0)
+			return;
+
+		inOrder(node->left, n, result);
+
+		if (--n == 0)
+		{
+			result = node->data;
+			return;
+		}
+
+		inOrder(node->right, n, result);
+	}
+
+public:
+	BinarySearchTree() : BinaryTree<T>() {}
+
+	void insert(const T& data)
+	{
+		Node<T>*& root = this->root;
+		if (root == nullptr)
+		{
+			root = new Node<T>(data);
+			return;
+		}
+
+		Node<T>* current = root;
+		Node<T>* parent = nullptr;
+
+		while (current != nullptr)
+		{
+			parent = current;
+
+			if (data < current->data)
+			{
+				current = current->left;
+			}
+			else
+			{
+				current = current->right;
+			}
+		}
+
+		if (data < parent->data)
+		{
+			parent->left = new Node<T>(data);
+		}
+		else
+		{
+			parent->right = new Node<T>(data);
+		}
+	}
+
+	bool find(const T& data)
+	{
+		return findHelper(this->root, data);
+	}
+
+	void remove(const T& data)
+	{
+		Node<T>*& root = this->root;
+		root = removeHelper(root, data);
+	}
+
+	T findNthSmallest(int n)
+	{
+		T result = T();
+		inOrder(this->root, n, result);
+		return result;
+	}
+
+	~BinarySearchTree() = default;
+};
+
+/*
+tree.prune([](const int& data) {
+		return data == 0;
+		});
+*/
+
+int main() 
 {
 	return 0;
 }
+
