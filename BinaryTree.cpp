@@ -24,7 +24,8 @@ private:
 
 public:
 	Node(T data = T(), Node<T>* left = nullptr, Node<T>* right = nullptr)
-		: data(data), left(left), right(right) {}
+		: data(data), left(left), right(right) {
+	}
 };
 
 template <typename T>
@@ -221,6 +222,37 @@ public:
 		}
 	}
 
+	void nodeCreate(int num, const T& stopFlag)
+	{
+		std::vector<Node<T>*> v(num);
+		int n = 1;
+		root = new Node<T>(n++);
+		v[0] = root;
+		for (int i = 0; i < num; i++)
+		{
+			int cA, cB;
+			std::cin >> cA >> cB;
+			if (cA == stopFlag)
+			{
+				v[i]->left = nullptr;
+			}
+			else
+			{
+				v[i]->left = new Node<T>(n++);
+				v[cA - 1] = v[i]->left;
+			}
+			if (cB == stopFlag)
+			{
+				v[i]->right = nullptr;
+			}
+			else
+			{
+				v[i]->right = new Node<T>(n++);
+				v[cB - 1] = v[i]->right;
+			}
+		}
+	}
+
 	void preInOrderCreate(T pre[], T in[], int pl, int pr, int il, int ir)
 	{
 		root = PreInOrderHelper(pre, in, pl, pr, il, ir);
@@ -275,11 +307,6 @@ public:
 		std::cout << std::endl;
 	}
 
-	Node<T>* getRoot()
-	{
-		return root;
-	}
-
 	bool find(const T& data)
 	{
 		if (root == nullptr)
@@ -305,6 +332,31 @@ public:
 	void prune(std::function<bool(const T&)> shouldPrune)
 	{
 		root = pruneHelper(root, shouldPrune);
+	}
+
+	void swapSubTrees(int k)
+	{
+		std::queue<Node<T>*> q;
+		q.push(root);
+		int level = 1;
+		while (!q.empty())
+		{
+			int size = q.size();
+			while (size--)
+			{
+				Node<T>* temp = q.front();
+				q.pop();
+				if (level % k == 0)
+				{
+					std::swap(temp->left, temp->right);
+				}
+				if (temp->left != nullptr)
+					q.push(temp->left);
+				if (temp->right != nullptr)
+					q.push(temp->right);
+			}
+			level++;
+		}
 	}
 
 	~BinaryTree()
@@ -368,14 +420,27 @@ private:
 	Node<T>* findMax(Node<T>* node)
 	{
 		while (node->right != nullptr)
+		{
 			node = node->right;
+		}
 		return node;
 	}
 
-	void inOrder(Node<T>* node, int& n, T& result)
+	Node<T>* findMin(Node<T>* node)
+	{
+		while (node->left != nullptr)
+		{
+			node = node->left;
+		}
+		return node;
+	}
+
+	void NthSmallestHelper(Node<T>* node, int& n, T& result)
 	{
 		if (node == nullptr || n <= 0)
+		{
 			return;
+		}
 
 		inOrder(node->left, n, result);
 
@@ -386,6 +451,18 @@ private:
 		}
 
 		inOrder(node->right, n, result);
+	}
+
+	void SmallestDiffHelper(Node<T>* node, T& prev, T& minDiff)
+	{
+		if (node == nullptr)
+		{
+			return;
+		}
+		SmallestDiffHelper(node->left, prev, minDiff);
+		minDiff = std::min(minDiff, node->data - prev);
+		prev = node->data;
+		SmallestDiffHelper(node->right, prev, minDiff);
 	}
 
 public:
@@ -441,8 +518,14 @@ public:
 	T findNthSmallest(int n)
 	{
 		T result = T();
-		inOrder(this->root, n, result);
+		NthSmallestHelperr(this->root, n, result);
 		return result;
+	}
+
+	void findSmallestDiff(T& minDiff)
+	{
+		T prev = T();
+		SmallestDiffHelper(this->root, prev, minDiff);
 	}
 
 	~BinarySearchTree() = default;
@@ -454,8 +537,7 @@ tree.prune([](const int& data) {
 		});
 */
 
-int main() 
+int main()
 {
 	return 0;
 }
-
